@@ -1,4 +1,4 @@
-# 华坤电气 AI 智能报价 Agent
+# 电气产品 AI 智能报价 Agent
 
 面向电气产品报价场景的本地 Web 应用。当前报价币种固定为人民币 CNY，上传清单中的每一行按施耐德品牌要求核对；系统只自动采用属性完全匹配且有来源、有效期和核准标记的价格。缺价可按明细 ID 人工录入，品牌或型号不符需修正清单后重传。
 
@@ -65,7 +65,7 @@ flowchart LR
 建议使用 Python 3.10 或更高版本。
 
 ```bash
-cd /Users/lisa/Desktop/agent/华坤/agent开发/quotation-agent
+cd quotation-agent
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
