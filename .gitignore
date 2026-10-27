@@ -1,0 +1,49 @@
+# Local secrets; keep safe configuration templates
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local runtime data and business documents
+/data/
+/outputs/
+/uploads/
+报价单_*.xlsx
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.log
+
+# Build artifacts and OS metadata
+build/
+dist/
+*.egg-info/
+.DS_Store
+
+# Existing unexplained local marker files (preserved on disk)
+/08eflm5f
+/_knkfqjc
+/xizafua_
+/v_31mpcq
+/y_4adv7_
+/43gdfequ
+/y1pptguy
+/293ecki6
+/i_quzh7a
+/8e6k2dv8

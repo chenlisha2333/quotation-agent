@@ -1,0 +1,60 @@
+{
+  "catalog_version": "2026-10-22",
+  "scope": "人工整理的施耐德官方产品事实；仅用于只读检索，不是供应商报价或技术选型批准。",
+  "products": [
+    {
+      "model": "A9F77216",
+      "name": "小型断路器",
+      "family": "Acti9 iC60N",
+      "facts": {"极数": "2P", "额定电流": "16 A", "脱扣曲线": "C", "额定分断能力": "IEC 60898-1：6000 A；IEC 60947-2：10 kA"},
+      "source_title": "Schneider Electric Egypt 产品页：A9F77216",
+      "source_url": "https://www.se.com/eg/en/product/A9F77216/miniature-circuitbreaker-acti9-ic60n-2p-16-a-c-curve-6000-a-iec-608981-10-ka-iec-609472/",
+      "checked_on": "2026-10-22"
+    },
+    {
+      "model": "A9F77232",
+      "name": "小型断路器",
+      "family": "Acti9 iC60N",
+      "facts": {"极数": "2P", "额定电流": "32 A", "脱扣曲线": "C", "额定分断能力": "IEC/EN 60898-1：6000 A；IEC/EN 60947-2：10 kA"},
+      "source_title": "Schneider Electric France 产品页：A9F77232",
+      "source_url": "https://www.se.com/fr/fr/product/A9F77232/acti9-ic60n-disjoncteur-2p-32a-courbe-c-400vca-6000a-10ka/",
+      "checked_on": "2026-10-22"
+    },
+    {
+      "model": "LC1D09M7",
+      "name": "交流接触器",
+      "family": "TeSys Deca",
+      "facts": {"主触点": "3P（3 NO）", "额定工作电流": "9 A", "AC-3 工作电压": "≤440 V AC", "线圈电压": "220 V AC，50/60 Hz", "外形尺寸": "宽 45 mm × 高 77 mm × 深 86 mm；附件和接线空间另行核对"},
+      "source_title": "Schneider Electric 官方产品数据表：LC1D09M7",
+      "source_url": "https://iportal.se.com/Contents/docs/SQD-LC1D09M7.PDF",
+      "checked_on": "2026-10-22"
+    },
+    {
+      "model": "LC1D09BD",
+      "name": "接触器",
+      "family": "TeSys Deca",
+      "facts": {"主触点": "3P（3 NO）", "额定工作电流": "9 A", "线圈电压": "24 V DC"},
+      "source_title": "Schneider Electric USA 产品页：LC1D09BD",
+      "source_url": "https://www.se.com/us/en/product/LC1D09BD/iec-contactor-tesys-deca-nonreversing-9a-5hp-at-480vac-up-to-100ka-sccr-3-phase-3-no-24vdc-coil-open-style/",
+      "checked_on": "2026-10-22"
+    },
+    {
+      "model": "XB4BA31",
+      "name": "绿色按钮",
+      "family": "Harmony XB4",
+      "facts": {"颜色": "绿色", "操作方式": "平头、弹簧复位", "触点": "1 NO", "标称安装直径": "22 mm；实际开孔按厂家尺寸图核对", "外形尺寸": "宽 30 mm × 高 47 mm × 深 52 mm；背部空间另行核对"},
+      "source_title": "Schneider Electric Singapore eShop 产品页：XB4BA31",
+      "source_url": "https://eshop.se.com/sg/push-button-metal-harmony-xb4-flush-green-22mm-spring-return-unmarked-1no-xb4ba31.html",
+      "checked_on": "2026-10-22"
+    },
+    {
+      "model": "XB4BA42",
+      "name": "红色按钮",
+      "family": "Harmony XB4",
+      "facts": {"颜色": "红色", "操作方式": "平头、弹簧复位", "触点": "1 NC", "标称安装直径": "22 mm；实际开孔按厂家尺寸图核对"},
+      "source_title": "Schneider Electric USA 产品页：XB4BA42",
+      "source_url": "https://www.se.com/us/en/product/XB4BA42/harmony-22mm-push-button-red-flush-spring-return-1-nc-unmarked/",
+      "checked_on": "2026-10-22"
+    }
+  ]
+}

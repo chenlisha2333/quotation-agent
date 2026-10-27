@@ -1,0 +1,22 @@
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+COPY requirements.txt ./
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -r requirements.txt \
+    && useradd --create-home --uid 10001 quote \
+    && mkdir -p /app/data \
+    && chown quote:quote /app/data
+
+COPY --chown=quote:quote app ./app
+COPY --chown=quote:quote static ./static
+COPY --chown=quote:quote templates ./templates
+COPY --chown=quote:quote data_sources ./data_sources
+
+USER quote
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

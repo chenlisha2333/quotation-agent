@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电气报价 Agent</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        h1 { color: #1a1a1a; }
+        .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        label { display: block; margin-bottom: 8px; font-weight: 500; color: #333; }
+        input[type="text"], input[type="number"], input[type="file"], textarea { width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font: inherit; }
+        input[type="number"].price-input { width: 120px; margin-bottom: 0; }
+        button { background: #1677ff; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #1557c3; }
+        button.secondary { background: #f0f0f0; color: #333; }
+        button.secondary:hover { background: #e0e0e0; }
+        button.danger { background: #ff4d4f; }
+        button.danger:hover { background: #d9363e; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #e8e8e8; padding: 10px; text-align: left; font-size: 13px; }
+        th { background: #fafafa; font-weight: 600; }
+        .pending { color: #d46b08; font-weight: 500; }
+        .success { color: #389e0d; }
+        .log { background: #f6ffed; border: 1px solid #b7eb8f; padding: 12px; border-radius: 6px; margin-top: 16px; font-size: 13px; }
+        .log p { margin: 4px 0; }
+        .pending-section { background: #fff7e6; border: 1px solid #ffd591; padding: 16px; border-radius: 6px; margin-top: 20px; }
+        .pending-section h3 { margin-top: 0; color: #d46b08; }
+        .pending-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 12px; background: white; border-radius: 6px; }
+        .pending-item span { flex: 1; }
+        .pending-item .actions { display: flex; gap: 8px; }
+        .hidden { display: none; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-pending { background: #fff7e6; color: #d46b08; }
+        .status-done { background: #f6ffed; color: #389e0d; }
+        .status-review { background: #e6f7ff; color: #1677ff; }
+        .chat-messages { min-height: 80px; max-height: 360px; overflow-y: auto; border: 1px solid #e8e8e8; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+        .chat-message { margin: 8px 0; padding: 10px; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .chat-user { background: #e6f4ff; }
+        .chat-assistant { background: #f6f7f8; }
+        .chat-error { background: #fff2f0; color: #a8071a; }
+        .chat-sources { font-size: 13px; line-height: 1.8; padding: 0 10px 10px; }
+    </style>
+</head>
+<body>
+    <h1>施耐德电气产品人民币报价</h1>
+    <div class="card">
+        <label for="customer">客户名称</label>
+        <input type="text" id="customer" placeholder="输入客户名称" value="">
+        <label for="accessToken">访问令牌（配置审批人员后必填；仅保留在当前页面）</label>
+        <input type="password" id="accessToken" autocomplete="off" placeholder="由项目管理员提供">
+        <p>草稿规则：人民币成本价 × 1.2（加价率 20%，税费另待确认）</p>
+        <p><a href="/templates/inquiry">下载施耐德询价表示例</a>，按实际需求核对型号和数量后上传。</p>
+        <label for="file">上传产品清单 Excel</label>
+        <input type="file" id="file" accept=".xlsx,.xls">
+        <button onclick="upload()">开始报价</button>
+        <label for="taskLookup" style="margin-top:16px;">恢复已有任务</label>
+        <input type="text" id="taskLookup" placeholder="粘贴任务 ID">
+        <button class="secondary" onclick="loadTask()">读取任务</button>
+    </div>
+
+    <div class="card">
+        <h2>自然语言助手</h2>
+        <p id="chatScope">当前为通用问答；读取报价任务后可询问该任务的状态与明细。</p>
+        <p>助手可查施耐德官方产品事实、比较两个已收录型号和读取当前任务摘要，不会修改成本、审批或发布报价。资料需技术核实，也不代表供应商价格。</p>
+        <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+        <label for="chatQuestion">输入问题</label>
+        <textarea id="chatQuestion" rows="3" maxlength="1000" placeholder="例如：这份报价还缺哪些信息？"></textarea>
+        <button id="sendChatButton" onclick="sendChat()">发送给 AI</button>
+    </div>
+
+    <div id="result" style="display:none;" class="card">
+        <h2>报价草稿（未审批）</h2>
+        <div id="summary"></div>
+        <table id="itemsTable">
+            <thead>
+                <tr>
+                    <th>明细ID</th>
+                    <th>产品名称</th>
+                    <th>型号</th>
+                    <th>品牌</th>
+                    <th>数量</th>
+                    <th>成本价</th>
+                    <th>单价</th>
+                    <th>总价</th>
+                    <th>备注</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div id="logs" class="log"></div>
+        <button id="exportButton" onclick="exportQuote('internal', 'xlsx')" style="margin-top: 16px;" disabled>导出内部 Excel</button>
+        <button id="exportWordButton" onclick="exportQuote('internal', 'docx')" disabled>导出内部 Word</button>
+        <div id="approvalSection" class="hidden" style="margin-top: 20px;">
+            <h3>草稿审批</h3>
+            <p>按技术、采购、商务顺序审批。每一阶段请使用该角色自己的访问令牌。</p>
+            <label for="approvalStage">审批阶段</label>
+            <select id="approvalStage"><option value="technical">技术</option><option value="procurement">采购</option><option value="commercial">商务</option></select>
+            <label for="approvalReason" style="margin-top:12px;">审批意见</label>
+            <input type="text" id="approvalReason" placeholder="填写本阶段核查结论">
+            <button onclick="approveTask()">提交审批</button>
+            <button id="customerExportButton" onclick="exportQuote('customer', 'xlsx')" disabled>导出客户 Excel</button>
+            <button id="customerWordButton" onclick="exportQuote('customer', 'docx')" disabled>导出客户 Word</button>
+        </div>
+    </div>
+
+    <div id="pendingSection" style="display:none;" class="card pending-section">
+        <h3>待处理明细</h3>
+        <p style="color: #666; font-size: 13px;">品牌或型号不符时，请先修正 Excel 后重新上传；仅缺价格的施耐德产品可按明细 ID 补价。</p>
+        <div id="pendingList"></div>
+        <div style="margin-top: 16px;">
+            <button id="confirmButton" onclick="confirmPrices()">提交全部人工成本价</button>
+        </div>
+    </div>
+
+    <script>
+        let currentItems = [];
+        let currentTaskId = null;
+        let currentStatus = null;
+        let pendingProducts = [];
+        let currentRole = null;
+        let chatHistory = [];
+
+        function authHeaders(extra = {}) {
+            const token = document.getElementById('accessToken').value.trim();
+            return token ? { ...extra, 'Authorization': `Bearer ${token}` } : extra;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[char]);
+        }
+
+        function appendChat(role, content) {
+            const message = document.createElement('div');
+            message.className = `chat-message chat-${role}`;
+            message.textContent = `${role === 'user' ? '你' : role === 'error' ? '提示' : 'AI'}：${content}`;
+            const container = document.getElementById('chatMessages');
+            container.appendChild(message);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function appendSources(sources) {
+            if (!sources || !sources.length) return;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chat-sources';
+            wrapper.append('施耐德官方资料（待技术核实）：');
+            sources.forEach(source => {
+                const link = document.createElement('a');
+                link.href = source.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = `[${source.source_id}] ${source.title}（核对于 ${source.checked_on || '未知日期'}）`;
+                wrapper.append(link, ' ');
+            });
+            document.getElementById('chatMessages').appendChild(wrapper);
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatQuestion');
+            const button = document.getElementById('sendChatButton');
+            const message = input.value.trim();
+            if (!message || button.disabled) return;
+            input.value = '';
+            button.disabled = true;
+            appendChat('user', message);
+            try {
+                const res = await fetch('/assistant/chat', {
+                    method: 'POST',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ message, task_id: currentTaskId, history: chatHistory.slice(-6) })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'AI 请求失败');
+                appendChat('assistant', data.answer);
+                appendSources(data.sources);
+                chatHistory.push({ role: 'user', content: message }, { role: 'assistant', content: data.answer });
+                chatHistory = chatHistory.slice(-6);
+            } catch (error) {
+                appendChat('error', error.message || 'AI 请求失败');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function setCurrentTask(taskId) {
+            if (currentTaskId !== taskId) {
+                chatHistory = [];
+                document.getElementById('chatMessages').replaceChildren();
+            }
+            currentTaskId = taskId;
+            document.getElementById('chatScope').textContent = `当前关联任务：${taskId}。AI 只读取你当前角色可见的摘要。`;
+        }
+
+        document.getElementById('accessToken').addEventListener('change', () => {
+            chatHistory = [];
+            document.getElementById('chatMessages').replaceChildren();
+        });
+
+        async function upload() {
+            const fileInput = document.getElementById('file');
+            const customer = document.getElementById('customer').value;
+
+            if (!fileInput.files.length) {
+                alert('请先选择 Excel 文件');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('customer_name', customer);
+
+            const res = await fetch('/upload', { method: 'POST', headers: authHeaders(), body: formData });
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.detail || '上传失败');
+                return;
+            }
+
+            currentItems = data.items;
+            setCurrentTask(data.task_id);
+            currentStatus = data.status;
+            pendingProducts = data.pending_products || [];
+
+            render(data);
+
+            // 如果有待确认产品，显示确认界面
+            if (data.status === '人工确认' && pendingProducts.length > 0) {
+                showPendingSection(pendingProducts);
+            } else {
+                document.getElementById('pendingSection').style.display = 'none';
+            }
+        }
+
+        async function loadTask() {
+            const taskId = document.getElementById('taskLookup').value.trim();
+            if (!taskId) { alert('请填写任务 ID'); return; }
+            const res = await fetch(`/tasks/${encodeURIComponent(taskId)}`, { headers: authHeaders() });
+            const data = await res.json();
+            if (!res.ok) { alert(data.detail || '读取失败'); return; }
+            setCurrentTask(data.task_id);
+            currentStatus = data.status;
+            currentItems = data.items;
+            pendingProducts = data.pending_products || [];
+            render(data);
+            if (data.status === '人工确认' && pendingProducts.length) showPendingSection(pendingProducts);
+            else document.getElementById('pendingSection').style.display = 'none';
+        }
+
+        function render(data) {
+            if (currentRole !== (data.actor_role || null)) {
+                chatHistory = [];
+                document.getElementById('chatMessages').replaceChildren();
+            }
+            currentRole = data.actor_role || null;
+            document.getElementById('result').style.display = 'block';
+            const summary = document.getElementById('summary');
+            const total = data.total_price === null ? '按角色隐藏' : (data.total_price || '0.00');
+            const statusClass = data.status === '完成' ? 'status-done' : data.status === '人工确认' ? 'status-review' : 'status-pending';
+            summary.innerHTML = `<p><strong>任务ID:</strong> ${escapeHtml(data.task_id)}</p><p><strong>状态:</strong> <span class="status-badge ${statusClass}">${escapeHtml(data.status)}</span></p><p><strong>产品数:</strong> ${data.items.length} | <strong>待确认:</strong> ${data.pending_count || 0} | <strong>总价:</strong> CNY ¥${escapeHtml(total)}</p>`;
+            document.getElementById('exportButton').disabled = data.status !== '完成' || currentRole === 'technical';
+            document.getElementById('exportWordButton').disabled = data.status !== '完成' || currentRole === 'technical';
+            const approvalSection = document.getElementById('approvalSection');
+            approvalSection.classList.toggle('hidden', data.status !== '完成');
+            document.getElementById('customerExportButton').disabled = !data.published_revision || (currentRole !== null && currentRole !== 'commercial');
+            document.getElementById('customerWordButton').disabled = !data.published_revision || (currentRole !== null && currentRole !== 'commercial');
+            const approved = Object.keys(data.approvals || {}).join(' → ') || '尚未审批';
+            summary.innerHTML += `<p><strong>已审批阶段：</strong>${escapeHtml(approved)} | <strong>客户版：</strong>${data.published_revision ? '已发布 v' + escapeHtml(data.published_revision) : '未发布'}</p>`;
+
+            const tbody = document.querySelector('#itemsTable tbody');
+            tbody.innerHTML = '';
+            data.items.forEach(item => {
+                const row = document.createElement('tr');
+                const remarkClass = data.status === '人工确认' ? 'pending' : 'success';
+                row.innerHTML = `<td>${escapeHtml(item.item_id)}</td><td>${escapeHtml(item.product.name)}</td><td>${escapeHtml(item.product.model)}</td><td>${escapeHtml(item.product.brand)}</td><td>${item.product.quantity}</td><td>${escapeHtml(item.cost_price !== null ? item.cost_price : '-')}</td><td>${escapeHtml(item.unit_price || '-')}</td><td>${escapeHtml(item.total_price || '-')}</td><td class="${remarkClass}">${escapeHtml(item.remark || '已报价')}</td>`;
+                tbody.appendChild(row);
+            });
+
+            const logs = document.getElementById('logs');
+            logs.innerHTML = data.messages.map(m => `<p>• ${escapeHtml(m)}</p>`).join('');
+        }
+
+        function showPendingSection(products) {
+            const section = document.getElementById('pendingSection');
+            const list = document.getElementById('pendingList');
+            section.style.display = 'block';
+            list.innerHTML = '';
+
+            document.getElementById('confirmButton').disabled = products.some(p => !p.can_enter_price) || (currentRole !== null && currentRole !== 'procurement');
+            products.forEach((p, idx) => {
+                const item = document.createElement('div');
+                item.className = 'pending-item';
+                item.innerHTML = `
+                    <span><strong>${escapeHtml(p.item_id)} ${escapeHtml(p.name)}</strong>${p.model ? ' (' + escapeHtml(p.model) + ')' : ''} - ${p.quantity}${escapeHtml(p.unit)}：${escapeHtml(p.reason)}</span>
+                    ${p.can_enter_price ? `<input type="number" class="price-input" id="price-${idx}" placeholder="人民币成本价" min="0.01" step="0.01">` : ''}
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function confirmPrices() {
+            if (!currentTaskId) {
+                alert('没有正在进行的任务');
+                return;
+            }
+
+            const prices = {};
+            pendingProducts.forEach((p, idx) => {
+                const val = document.getElementById(`price-${idx}`)?.value || '';
+                if (val !== '' && Number(val) > 0) {
+                    prices[p.item_id] = val;
+                }
+            });
+            if (Object.keys(prices).length !== pendingProducts.length) {
+                alert('请补齐全部待处理行的有效成本价；品牌或型号问题需先修正 Excel。');
+                return;
+            }
+
+            const res = await fetch(`/tasks/${currentTaskId}/confirm`, {
+                method: 'POST',
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(prices)
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || '确认失败');
+                return;
+            }
+
+            currentItems = data.items;
+            currentStatus = data.status;
+            render(data);
+            document.getElementById('pendingSection').style.display = 'none';
+        }
+
+        async function approveTask() {
+            if (!currentTaskId) { alert('请先读取任务'); return; }
+            const stage = document.getElementById('approvalStage').value;
+            const reason = document.getElementById('approvalReason').value.trim();
+            if (!reason) { alert('请填写审批意见'); return; }
+            const res = await fetch(`/tasks/${encodeURIComponent(currentTaskId)}/approve/${stage}`, {
+                method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ reason })
+            });
+            const data = await res.json();
+            if (!res.ok) { alert(data.detail || '审批失败'); return; }
+            render(data);
+        }
+
+        async function exportQuote(format = 'internal', fileType = 'xlsx') {
+            if (!currentItems.length || currentStatus !== '完成') {
+                alert('报价尚未完成，不能导出');
+                return;
+            }
+            const res = await fetch('/export', {
+                method: 'POST',
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ task_id: currentTaskId, format, file_type: fileType })
+            });
+            if (!res.ok) {
+                const error = await res.json();
+                alert(error.detail || '导出失败');
+                return;
+            }
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${format === 'customer' ? '客户报价单' : '内部草稿'}.${fileType}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
