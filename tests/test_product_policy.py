@@ -58,7 +58,29 @@ def test_database_only_returns_approved_exact_cny_price(tmp_path, monkeypatch):
     assert matches[0].price == Decimal("12.34")
     assert matches[0].brand == "施耐德"
     assert matches[0].currency == "CNY"
+    assert matches[0].id is not None
     assert db.search_local_price(product(model="A3")) == []
+
+
+def test_quote_snapshot_keeps_price_record_provenance_after_price_record_changes(monkeypatch):
+    db.init_db()
+    db.insert_price(approved_price())
+    frozen_record = db.search_local_price(product())[0]
+    monkeypatch.setattr(agent, "search_local_price_tool", lambda _: frozen_record)
+
+    state = agent.run_quotation_agent([product()])
+    saved = agent.get_task_state(state["task_id"])
+    item = saved["items"][0]
+    assert item.price_record_id == frozen_record.id
+    assert item.price_source_reference == "QUOTE-001"
+    assert item.price_valid_until == "2099-12-31"
+    assert item.price_evidence_status == "verified"
+
+    with db.get_conn() as conn:
+        conn.execute("UPDATE price_records SET source_reference = 'QUOTE-CHANGED' WHERE id = ?", (frozen_record.id,))
+    reloaded = agent.get_task_state(state["task_id"])["items"][0]
+    assert reloaded.price_source_reference == "QUOTE-001"
+    assert reloaded.price_record_id == frozen_record.id
 
 
 def test_duplicate_names_are_confirmed_by_item_id_and_all_prices_required(monkeypatch):
@@ -75,6 +97,8 @@ def test_duplicate_names_are_confirmed_by_item_id_and_all_prices_required(monkey
     })
     assert done["status"] == "完成"
     assert [item.cost_price for item in done["items"]] == [Decimal("10"), Decimal("20")]
+    assert all(item.price_evidence_status == "pending_procurement_evidence" for item in done["items"])
+    assert all(item.price_source_reference is None and item.price_record_id is None for item in done["items"])
     assert sum(item.total_price for item in done["items"]) == Decimal("60.00")
     with pytest.raises(ValueError, match="不处于人工确认状态"):
         agent.apply_manual_prices(state["task_id"], {"line-1": Decimal("11")})
@@ -126,4 +150,4 @@ def test_export_uses_server_task_and_rejects_incomplete_quotes(tmp_path, monkeyp
     workbook = openpyxl.load_workbook(BytesIO(response.content), data_only=True)
     assert "人民币 CNY" in workbook["报价单"]["A1"].value
     assert "测试客户" in workbook["报价单"]["A2"].value
-    assert workbook["计算依据-内部"]["M2"].value == "CNY"
+    assert workbook["计算依据-内部"]["Q2"].value == "CNY"

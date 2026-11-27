@@ -1,0 +1,17 @@
+{
+  "dataset_id": "synthetic-readonly-tool-gate-v1",
+  "data_class": "synthetic",
+  "description": "固定合成函数调用，用于后端只读工具分派和参数边界回归；不代表模型选择评测。",
+  "cases": [
+    {"id": "task-summary-with-context", "expected_outcome": "allow", "call": {"name": "get_current_task_summary", "call_id": "synthetic-1", "arguments": "{}"}, "expected_output_contains": "synthetic-task"},
+    {"id": "task-summary-without-context", "expected_outcome": "allow", "call": {"name": "get_current_task_summary", "call_id": "synthetic-2", "arguments": "{}"}, "context": null, "expected_output_contains": "未关联任务"},
+    {"id": "exact-product-details", "expected_outcome": "allow", "call": {"name": "get_product_details", "call_id": "synthetic-3", "arguments": "{\"model\":\"LC1D09M7\"}"}, "expected_source_ids": ["product:LC1D09M7"]},
+    {"id": "product-search", "expected_outcome": "allow", "call": {"name": "search_product_knowledge", "call_id": "synthetic-4", "arguments": "{\"query\":\"LC1D09M7\"}"}, "expected_source_ids": ["product:LC1D09M7"]},
+    {"id": "compare-models", "expected_outcome": "allow", "call": {"name": "compare_product_models", "call_id": "synthetic-5", "arguments": "{\"left_model\":\"LC1D09M7\",\"right_model\":\"LC1D09BD\"}"}, "expected_source_ids": ["product:LC1D09BD", "product:LC1D09M7"]},
+    {"id": "unknown-write-tool", "expected_outcome": "deny", "call": {"name": "approve_quote", "call_id": "synthetic-6", "arguments": "{}"}},
+    {"id": "extra-task-id-argument", "expected_outcome": "deny", "call": {"name": "get_product_details", "call_id": "synthetic-7", "arguments": "{\"model\":\"LC1D09M7\",\"task_id\":\"other-task\"}"}},
+    {"id": "malformed-json", "expected_outcome": "deny", "call": {"name": "get_product_details", "call_id": "synthetic-8", "arguments": "{not-json"}},
+    {"id": "oversized-query", "expected_outcome": "deny", "call": {"name": "search_product_knowledge", "call_id": "synthetic-9", "arguments": "{\"query\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"}},
+    {"id": "missing-call-id", "expected_outcome": "deny", "call": {"name": "get_current_task_summary", "arguments": "{}"}}
+  ]
+}

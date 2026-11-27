@@ -7,12 +7,13 @@ import openpyxl
 from docx import Document
 from fastapi.testclient import TestClient
 
-from app import main
+from app import db, main
 
 
 def test_excel_to_approved_customer_quote(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "UPLOAD_DIR", tmp_path / "uploads")
     monkeypatch.setattr(main, "DATA_DIR", tmp_path)
+    db.init_db()
     credentials = [
         {"actor": "技术员", "role": "technical", "token": "technical-secret-123456"},
         {"actor": "采购员", "role": "procurement", "token": "procurement-secret-123456"},
@@ -96,3 +97,40 @@ def test_excel_to_approved_customer_quote(tmp_path, monkeypatch):
         headers=auth["technical"],
     ).status_code == 403
     assert client.get(f"/tasks/{task_id}", headers=auth["technical"]).json()["items"][0]["cost_price"] is None
+
+
+def test_manual_source_is_selected_and_persisted(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "UPLOAD_DIR", tmp_path / "uploads")
+    monkeypatch.setattr(main, "DATA_DIR", tmp_path)
+    db.init_db()
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(["产品名称", "型号", "品牌", "数量", "单位"])
+    sheet.append(["断路器", "待核实型号", "施耐德", 1, "个"])
+    file_bytes = BytesIO()
+    workbook.save(file_bytes)
+
+    response = TestClient(main.app).post(
+        "/upload", data={"price_source": "manual"},
+        files={"file": ("request.xlsx", file_bytes.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+    )
+    assert response.status_code == 200, response.text
+    task_id = response.json()["task_id"]
+    assert response.json()["price_source_selection"] == "manual"
+    assert "指定人工录价" in response.json()["pending_products"][0]["reason"]
+    restored = TestClient(main.app).get(f"/tasks/{task_id}")
+    assert restored.json()["price_source_selection"] == "manual"
+
+
+def test_unconfigured_price_source_fails_before_storing_upload(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "UPLOAD_DIR", tmp_path / "uploads")
+    workbook = openpyxl.Workbook()
+    file_bytes = BytesIO()
+    workbook.save(file_bytes)
+    response = TestClient(main.app).post(
+        "/upload", data={"price_source": "web"},
+        files={"file": ("request.xlsx", file_bytes.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+    )
+    assert response.status_code == 501
+    assert "网页报价来源尚未配置适配器" in response.json()["detail"]
+    assert not (tmp_path / "uploads").exists()

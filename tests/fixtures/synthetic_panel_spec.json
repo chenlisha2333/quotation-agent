@@ -1,0 +1,19 @@
+{
+  "data_class": "synthetic",
+  "design_spec_id": "SYNTH-PANEL-001",
+  "cabinet_type": "DEMO-CABINET-A",
+  "board_width": "600",
+  "board_height": "400",
+  "edge_clearance": "20",
+  "minimum_gap": "10",
+  "keepouts": [
+    {"keepout_id": "SYNTH-KEEP-01", "x": "20", "y": "20", "width": "60", "height": "50"}
+  ],
+  "components": [
+    {"bom_item_id": "SYNTH-BOM-01", "model": "DEMO-BREAKER", "quantity": 1, "width": "60", "height": "90", "footprint_version": "synthetic-1", "source_reference": "synthetic-example"},
+    {"bom_item_id": "SYNTH-BOM-02", "model": "DEMO-CONTACTOR", "quantity": 1, "width": "80", "height": "100", "footprint_version": "synthetic-1", "source_reference": "synthetic-example"},
+    {"bom_item_id": "SYNTH-BOM-03", "model": "DEMO-TERMINAL", "quantity": 1, "width": "50", "height": "70", "footprint_version": "synthetic-1", "source_reference": "synthetic-example"},
+    {"bom_item_id": "SYNTH-BOM-04", "model": "DEMO-RELAY", "quantity": 1, "width": "40", "height": "60", "footprint_version": "synthetic-1", "source_reference": "synthetic-example"},
+    {"bom_item_id": "SYNTH-BOM-05", "model": "DEMO-POWER", "quantity": 1, "width": "45", "height": "85", "footprint_version": "synthetic-1", "source_reference": "synthetic-example"}
+  ]
+}

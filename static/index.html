@@ -3,115 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电气报价 Agent</title>
+    <title>电气成套报价工作台</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-        h1 { color: #1a1a1a; }
-        .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        label { display: block; margin-bottom: 8px; font-weight: 500; color: #333; }
-        input[type="text"], input[type="number"], input[type="file"], textarea { width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font: inherit; }
-        input[type="number"].price-input { width: 120px; margin-bottom: 0; }
-        button { background: #1677ff; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; }
-        button:hover { background: #1557c3; }
-        button.secondary { background: #f0f0f0; color: #333; }
-        button.secondary:hover { background: #e0e0e0; }
-        button.danger { background: #ff4d4f; }
-        button.danger:hover { background: #d9363e; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #e8e8e8; padding: 10px; text-align: left; font-size: 13px; }
-        th { background: #fafafa; font-weight: 600; }
-        .pending { color: #d46b08; font-weight: 500; }
-        .success { color: #389e0d; }
-        .log { background: #f6ffed; border: 1px solid #b7eb8f; padding: 12px; border-radius: 6px; margin-top: 16px; font-size: 13px; }
-        .log p { margin: 4px 0; }
-        .pending-section { background: #fff7e6; border: 1px solid #ffd591; padding: 16px; border-radius: 6px; margin-top: 20px; }
-        .pending-section h3 { margin-top: 0; color: #d46b08; }
-        .pending-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 12px; background: white; border-radius: 6px; }
-        .pending-item span { flex: 1; }
-        .pending-item .actions { display: flex; gap: 8px; }
+        :root {
+            color-scheme: light;
+            --ink: #162b31;
+            --muted: #627579;
+            --line: #dce6e3;
+            --paper: #ffffff;
+            --canvas: #f1f5f3;
+            --green: #087e68;
+            --green-dark: #075848;
+            --cyan: #13b8aa;
+            --amber: #d98618;
+            --red: #b8473d;
+            --shadow: 0 10px 28px rgba(19, 49, 46, .07);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; color: var(--ink); background-color: var(--canvas);
+            background-image: linear-gradient(rgba(24, 90, 76, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(24, 90, 76, .035) 1px, transparent 1px);
+            background-size: 28px 28px;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        button, input, textarea, select { font: inherit; }
+        .app-shell { width: min(1480px, calc(100% - 40px)); margin: 0 auto; padding: 18px 0 36px; }
+        .masthead {
+            position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 24px;
+            padding: 20px 26px; border-radius: 17px; color: #f3fbf8;
+            background: linear-gradient(115deg, #102e32 0%, #174c4a 68%, #12675a 100%); box-shadow: var(--shadow);
+        }
+        .masthead::after {
+            content: ""; position: absolute; width: 360px; height: 220px; right: -48px; top: -78px; opacity: .28;
+            background: radial-gradient(circle at 25% 28%, transparent 0 35px, #6fdbbf 36px 38px, transparent 39px),
+                linear-gradient(90deg, transparent 0 24%, #6fdbbf 24.5% 25%, transparent 25.5%),
+                linear-gradient(0deg, transparent 0 62%, #6fdbbf 62.5% 63%, transparent 63.5%);
+            transform: rotate(-18deg); pointer-events: none;
+        }
+        .brand-line { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+        .brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(159, 239, 215, .5); border-radius: 13px; color: #9ff0d9; background: rgba(20, 198, 158, .12); font-size: 23px; }
+        .eyebrow { margin: 0 0 6px; color: #9fddd0; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+        h1 { margin: 0; color: #f8fffc; font-size: clamp(22px, 3vw, 30px); line-height: 1.2; letter-spacing: -.03em; }
+        .masthead-note { max-width: 330px; margin: 0; position: relative; z-index: 1; color: #c9dfd9; font-size: 13px; line-height: 1.7; text-align: right; }
+        .workspace-grid { display: grid; grid-template-columns: minmax(260px, 310px) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 16px; }
+        .task-sidebar { display: grid; gap: 13px; position: sticky; top: 14px; }
+        .task-sidebar .card { padding: 19px; }
+        .task-sidebar .section-heading { gap: 10px; margin-bottom: 16px; }
+        .task-sidebar .section-icon { width: 34px; height: 34px; border-radius: 10px; font-size: 16px; }
+        .task-sidebar h2 { font-size: 16px; }
+        .task-sidebar .section-subtitle { font-size: 11px; }
+        .workflow-rail { display: flex; align-items: center; gap: 0; margin: 0 0 14px; padding: 0 22px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.92); box-shadow: 0 3px 12px rgba(19,49,46,.03); }
+        .workflow-step { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 15px 0; color: var(--muted); font-size: 13px; font-weight: 650; }
+        .step-no { display: grid; place-items: center; width: 27px; height: 27px; flex: 0 0 auto; border: 1px solid #bed7cf; border-radius: 50%; color: var(--green); background: #eff8f4; font-size: 12px; font-weight: 800; }
+        .workflow-step.active { color: var(--green-dark); }
+        .workflow-step.active .step-no { color: white; background: var(--green); border-color: var(--green); box-shadow: 0 0 0 4px #dff2eb; }
+        .step-wire { width: 44px; height: 1px; margin: 0 20px 0 4px; flex: 0 0 auto; background: #c7d8d3; }
+        .intake-grid { display: grid; gap: 13px; align-items: start; }
+        .card { min-width: 0; padding: 25px; border: 1px solid rgba(207, 222, 217, .9); border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); }
+        .section-heading { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 20px; }
+        .section-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 11px; color: var(--green); background: #e9f6f1; font-size: 18px; font-weight: 800; }
+        h2 { margin: 0; color: var(--ink); font-size: 18px; letter-spacing: -.02em; }
+        h3 { margin: 0 0 8px; color: var(--ink); font-size: 15px; }
+        .section-subtitle, .helper-text { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+        .field-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        label { display: block; margin: 0 0 7px; color: #344b4e; font-size: 12px; font-weight: 750; }
+        input[type="text"], input[type="password"], input[type="number"], input[type="file"], textarea, select {
+            width: 100%; min-height: 43px; padding: 10px 12px; border: 1px solid #d4e0dc; border-radius: 9px; outline: none; color: var(--ink); background: #fbfdfc; font-size: 13px; transition: border-color .16s, box-shadow .16s, background .16s;
+        }
+        input:focus, textarea:focus, select:focus { border-color: #28a58c; background: white; box-shadow: 0 0 0 3px rgba(19,184,170,.12); }
+        input[type="file"] { min-height: auto; padding: 8px; }
+        input[type="file"]::file-selector-button { margin-right: 10px; padding: 8px 12px; border: 0; border-radius: 7px; color: var(--green-dark); background: #e6f4ef; font-weight: 700; cursor: pointer; }
+        .field { min-width: 0; }
+        .field-wide { grid-column: 1 / -1; }
+        .rule-note { display: flex; align-items: flex-start; gap: 9px; margin: 13px 0; padding: 10px 11px; border: 1px solid #d9ebe5; border-radius: 10px; color: #46625e; background: #f5faf7; font-size: 11px; line-height: 1.55; }
+        .rule-dot { width: 8px; height: 8px; margin-top: 4px; flex: 0 0 auto; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 4px #d9f4ec; }
+        .card-actions, .button-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+        button { min-height: 41px; padding: 10px 16px; border: 1px solid transparent; border-radius: 9px; color: white; background: var(--green); font-size: 13px; font-weight: 750; cursor: pointer; transition: transform .15s, background .15s, box-shadow .15s; }
+        button:hover:not(:disabled) { transform: translateY(-1px); background: var(--green-dark); box-shadow: 0 5px 12px rgba(8,126,104,.17); }
+        button:disabled { opacity: .48; cursor: not-allowed; }
+        button.secondary { color: #355653; border-color: #d1e1db; background: #f6faf8; }
+        button.secondary:hover:not(:disabled) { color: var(--green-dark); border-color: #a6cec0; background: #eaf5f0; box-shadow: none; }
+        .sample-link { margin-left: auto; color: var(--green); font-size: 12px; font-weight: 700; text-decoration: none; }
+        .sample-link:hover { text-decoration: underline; }
+        .restore-card { display: flex; flex-direction: column; }
+        .restore-card .restore-form { margin-top: 0; }
+        .restore-card .restore-mark { display: none; }
+        .restore-form { display: grid; gap: 10px; }
+        .restore-form input { margin: 0; }
+        .restore-form button { justify-self: start; }
+        .main-stage { min-width: 0; }
+        .assistant-card { min-height: min(760px, calc(100vh - 170px)); padding: 22px; display: flex; flex-direction: column; }
+        .post-work-grid { display: flex; flex-direction: column; gap: 14px; align-items: stretch; margin-top: 0; }
+        .post-work-grid.has-result { display: flex; }
+        #result { margin: 0; }
+        .assistant-card .section-heading { margin-bottom: 8px; }
+        .assistant-card .chat-messages { min-height: 300px; flex: 1; max-height: 58vh; overflow-y: auto; margin: 15px 0 12px; padding: 16px; border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(180deg, #fbfdfc, #f5f9f7); }
+        .chat-message { width: fit-content; max-width: min(780px, 88%); margin: 10px 0; padding: 12px 14px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
+        .chat-user { margin-left: auto; color: #275748; background: #e7f5ef; }
+        .chat-assistant { color: #31494a; background: #edf2f1; }
+        .chat-error { color: #8d342d; background: #fff0ed; }
+        .chat-sources { padding: 4px 4px 10px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+        .chat-sources a { color: var(--green); }
+        .chat-composer { padding: 12px; border: 1px solid #d7e3de; border-radius: 14px; background: #fff; box-shadow: 0 6px 18px rgba(19,49,46,.05); }
+        #chatQuestion { min-height: 76px; resize: vertical; border: 0; background: transparent; box-shadow: none; font-size: 14px; }
+        #chatQuestion:focus { box-shadow: none; }
+        .composer-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; }
+        .composer-hint { color: var(--muted); font-size: 11px; }
+        .chat-send { min-width: 108px; margin: 0; }
+        .prompt-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 3px; }
+        .prompt-chip { min-height: 32px; padding: 6px 11px; border-color: #d9e6e1; border-radius: 999px; color: #47635e; background: #fff; font-size: 11px; font-weight: 650; }
+        .prompt-chip:hover:not(:disabled) { transform: none; color: var(--green-dark); border-color: #9bc9b9; background: #edf7f2; box-shadow: none; }
+        #summary { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin: 18px 0; }
+        #summary p { min-width: 0; margin: 0; padding: 12px 13px; border: 1px solid #e0e9e5; border-radius: 10px; background: #f8fbf9; color: #435b5a; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+        #summary p:last-child { grid-column: 1 / -1; }
+        #summary strong { color: #253e40; }
+        .status-badge { display: inline-flex; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+        .status-pending { color: #956017; background: #fff1d8; }
+        .status-done { color: #09684e; background: #dff4e9; }
+        .status-review { color: #166a78; background: #dff4f4; }
+        .table-wrap { width: 100%; overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 11px; }
+        table { width: 100%; min-width: 850px; border-collapse: collapse; }
+        th, td { padding: 11px 12px; border-bottom: 1px solid #e5ece9; text-align: left; vertical-align: top; font-size: 12px; line-height: 1.55; }
+        th { position: sticky; top: 0; color: #385451; background: #edf5f1; font-size: 11px; font-weight: 800; white-space: nowrap; }
+        tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:hover { background: #f8fbf9; }
+        .pending { color: #9a651c; font-weight: 700; }
+        .success { color: #14745b; }
+        .log { margin: 14px 0; padding: 13px 15px; border: 1px solid #d7e8df; border-left: 3px solid var(--cyan); border-radius: 10px; color: #47605a; background: #f6faf7; font-size: 12px; }
+        .log p { margin: 4px 0; line-height: 1.55; }
+        .approval-panel { margin-top: 22px; padding: 18px; border: 1px solid #d6e8e1; border-radius: 12px; background: linear-gradient(135deg, #f5faf7, #edf7f2); }
+        .approval-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .approval-stages { color: #5d7772; font-size: 11px; white-space: nowrap; }
+        .approval-fields { display: grid; grid-template-columns: 155px minmax(0,1fr); gap: 12px; align-items: end; }
+        .approval-fields input, .approval-fields select { margin: 0; }
+        .approval-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+        .pending-section { margin-top: 18px; border-color: #eed7a9; background: #fffaf0; }
+        .pending-section .section-icon { color: #a36710; background: #fff0ce; }
+        .pending-section .helper-text { margin: -8px 0 15px; }
+        .pending-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 9px; padding: 13px; border: 1px solid #f0e4cb; border-radius: 10px; background: white; }
+        .pending-item span { flex: 1; color: #59645c; font-size: 12px; line-height: 1.6; }
+        .pending-item .price-input { width: 170px; margin: 0; }
+        .pending-submit { margin-top: 9px; }
         .hidden { display: none; }
-        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .status-pending { background: #fff7e6; color: #d46b08; }
-        .status-done { background: #f6ffed; color: #389e0d; }
-        .status-review { background: #e6f7ff; color: #1677ff; }
-        .chat-messages { min-height: 80px; max-height: 360px; overflow-y: auto; border: 1px solid #e8e8e8; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
-        .chat-message { margin: 8px 0; padding: 10px; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
-        .chat-user { background: #e6f4ff; }
-        .chat-assistant { background: #f6f7f8; }
-        .chat-error { background: #fff2f0; color: #a8071a; }
-        .chat-sources { font-size: 13px; line-height: 1.8; padding: 0 10px 10px; }
+        @media (max-width: 980px) {
+            .workspace-grid { grid-template-columns: minmax(235px, 280px) minmax(0, 1fr); gap: 12px; }
+            .task-sidebar .card { padding: 16px; }
+            .card { padding: 21px; }
+        }
+        @media (max-width: 760px) {
+            .app-shell { width: min(100% - 24px, 680px); padding-top: 12px; }
+            .masthead { align-items: flex-start; padding: 22px; border-radius: 15px; }
+            .masthead-note { display: none; }
+            .workspace-grid { grid-template-columns: 1fr; }
+            .task-sidebar { position: static; grid-template-columns: 1fr 1fr; align-items: stretch; }
+            .task-sidebar .card { padding: 16px; }
+            .workflow-rail { padding: 0 14px; }
+            .workflow-step { gap: 7px; font-size: 11px; }
+            .step-wire { width: 16px; margin: 0 8px 0 0; }
+            .intake-grid { grid-template-columns: 1fr; }
+            .post-work-grid { gap: 12px; }
+            .assistant-card { min-height: 620px; }
+            .assistant-card .chat-messages { max-height: none; }
+            .field-wide { grid-column: auto; }
+            .approval-fields { grid-template-columns: 1fr; }
+            .approval-head { display: block; }
+            .approval-stages { margin-top: 8px; white-space: normal; }
+            .pending-item { align-items: stretch; flex-direction: column; }
+            .pending-item .price-input { width: 100%; }
+            .sample-link { margin: 2px 0 0; }
+        }
+        @media (max-width: 440px) {
+            .task-sidebar { grid-template-columns: 1fr; }
+            .assistant-card { min-height: 560px; padding: 16px; }
+            .workflow-rail { gap: 0; padding: 0 10px; }
+            .workflow-step { flex-direction: column; align-items: flex-start; gap: 5px; }
+            .step-wire { width: 12px; margin: -14px 5px 0 0; }
+            .card { padding: 17px; border-radius: 13px; }
+            #summary { grid-template-columns: 1fr; }
+            #summary p:last-child { grid-column: auto; }
+            .card-actions { align-items: stretch; flex-direction: column; }
+            .card-actions button { width: 100%; }
+        }
     </style>
 </head>
 <body>
-    <h1>施耐德电气产品人民币报价</h1>
-    <div class="card">
-        <label for="customer">客户名称</label>
-        <input type="text" id="customer" placeholder="输入客户名称" value="">
-        <label for="accessToken">访问令牌（配置审批人员后必填；仅保留在当前页面）</label>
-        <input type="password" id="accessToken" autocomplete="off" placeholder="由项目管理员提供">
-        <p>草稿规则：人民币成本价 × 1.2（加价率 20%，税费另待确认）</p>
-        <p><a href="/templates/inquiry">下载施耐德询价表示例</a>，按实际需求核对型号和数量后上传。</p>
-        <label for="file">上传产品清单 Excel</label>
-        <input type="file" id="file" accept=".xlsx,.xls">
-        <button onclick="upload()">开始报价</button>
-        <label for="taskLookup" style="margin-top:16px;">恢复已有任务</label>
-        <input type="text" id="taskLookup" placeholder="粘贴任务 ID">
-        <button class="secondary" onclick="loadTask()">读取任务</button>
-    </div>
+    <main class="app-shell">
+        <header class="masthead">
+            <div class="brand-line">
+                <div class="brand-mark" aria-hidden="true">ϟ</div>
+                <div><p class="eyebrow">HAKUAN · QUOTATION WORKBENCH</p><h1>电气成套报价工作台</h1></div>
+            </div>
+            <p class="masthead-note">从询价表到可审核的报价草稿。价格由规则计算，关键节点由人工确认。</p>
+        </header>
 
-    <div class="card">
-        <h2>自然语言助手</h2>
-        <p id="chatScope">当前为通用问答；读取报价任务后可询问该任务的状态与明细。</p>
-        <p>助手可查施耐德官方产品事实、比较两个已收录型号和读取当前任务摘要，不会修改成本、审批或发布报价。资料需技术核实，也不代表供应商价格。</p>
-        <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
-        <label for="chatQuestion">输入问题</label>
-        <textarea id="chatQuestion" rows="3" maxlength="1000" placeholder="例如：这份报价还缺哪些信息？"></textarea>
-        <button id="sendChatButton" onclick="sendChat()">发送给 AI</button>
-    </div>
+        <section class="workspace-grid" aria-label="报价工作区">
+            <aside class="task-sidebar" aria-label="报价任务">
+                <section class="intake-grid">
+                    <div class="card">
+                        <div class="section-heading"><span class="section-icon" aria-hidden="true">＋</span><div><h2>新建报价</h2><p class="section-subtitle">上传询价清单开始处理。</p></div></div>
+                        <div class="field-grid">
+                            <div class="field"><label for="customer">客户名称</label><input type="text" id="customer" placeholder="输入客户名称" value=""></div>
+                            <div class="field"><label for="accessToken">访问令牌</label><input type="password" id="accessToken" autocomplete="off" placeholder="由管理员提供"></div>
+                            <div class="field field-wide"><label for="priceSource">报价来源</label><select id="priceSource"><option value="database">本地价格库（可用）</option><option value="manual">人工录价（可用）</option><option value="web">网页来源（适配器待接入）</option><option value="software">外部软件 / ERP（适配器待接入）</option></select><p class="helper-text">网页和外部软件目前不能自动取价；选择后系统会提示尚未接入，不会改用其他来源。</p></div>
+                            <div class="field field-wide"><label for="file">询价产品清单（Excel）</label><input type="file" id="file" accept=".xlsx,.xls"></div>
+                        </div>
+                        <div class="rule-note"><span class="rule-dot"></span><span>草稿按成本 × 1.2 计算；税费及商务条款待确认。</span></div>
+                        <div class="card-actions"><button onclick="upload()">创建报价任务</button><a class="sample-link" href="/templates/inquiry">下载询价表示例 ↗</a></div>
+                    </div>
+                </section>
+                <section class="card restore-card">
+                    <div class="section-heading"><span class="section-icon" aria-hidden="true">⟳</span><div><h2>恢复任务</h2><p class="section-subtitle">读取已有报价和审批进度。</p></div></div>
+                    <div class="restore-form"><label for="taskLookup">任务 ID</label><input type="text" id="taskLookup" placeholder="粘贴任务 ID"><button class="secondary" onclick="loadTask()">读取任务</button></div>
+                </section>
+            </aside>
 
-    <div id="result" style="display:none;" class="card">
-        <h2>报价草稿（未审批）</h2>
-        <div id="summary"></div>
-        <table id="itemsTable">
-            <thead>
-                <tr>
-                    <th>明细ID</th>
-                    <th>产品名称</th>
-                    <th>型号</th>
-                    <th>品牌</th>
-                    <th>数量</th>
-                    <th>成本价</th>
-                    <th>单价</th>
-                    <th>总价</th>
-                    <th>备注</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-        <div id="logs" class="log"></div>
-        <button id="exportButton" onclick="exportQuote('internal', 'xlsx')" style="margin-top: 16px;" disabled>导出内部 Excel</button>
-        <button id="exportWordButton" onclick="exportQuote('internal', 'docx')" disabled>导出内部 Word</button>
-        <div id="approvalSection" class="hidden" style="margin-top: 20px;">
-            <h3>草稿审批</h3>
-            <p>按技术、采购、商务顺序审批。每一阶段请使用该角色自己的访问令牌。</p>
-            <label for="approvalStage">审批阶段</label>
-            <select id="approvalStage"><option value="technical">技术</option><option value="procurement">采购</option><option value="commercial">商务</option></select>
-            <label for="approvalReason" style="margin-top:12px;">审批意见</label>
-            <input type="text" id="approvalReason" placeholder="填写本阶段核查结论">
-            <button onclick="approveTask()">提交审批</button>
-            <button id="customerExportButton" onclick="exportQuote('customer', 'xlsx')" disabled>导出客户 Excel</button>
-            <button id="customerWordButton" onclick="exportQuote('customer', 'docx')" disabled>导出客户 Word</button>
-        </div>
-    </div>
+            <div class="main-stage">
+                <nav class="workflow-rail" aria-label="报价处理阶段">
+                    <div class="workflow-step active"><span class="step-no">01</span><span>导入询价</span></div><span class="step-wire"></span>
+                    <div class="workflow-step"><span class="step-no">02</span><span>核对与补价</span></div><span class="step-wire"></span>
+                    <div class="workflow-step"><span class="step-no">03</span><span>审批与导出</span></div>
+                </nav>
 
-    <div id="pendingSection" style="display:none;" class="card pending-section">
-        <h3>待处理明细</h3>
-        <p style="color: #666; font-size: 13px;">品牌或型号不符时，请先修正 Excel 后重新上传；仅缺价格的施耐德产品可按明细 ID 补价。</p>
-        <div id="pendingList"></div>
-        <div style="margin-top: 16px;">
-            <button id="confirmButton" onclick="confirmPrices()">提交全部人工成本价</button>
-        </div>
-    </div>
+                <section id="pendingSection" style="display:none;" class="card pending-section">
+                    <div class="section-heading"><span class="section-icon" aria-hidden="true">!</span><div><h2>待核对与补价</h2><p class="section-subtitle">有问题的型号先修正询价表；仅缺价格的产品可按明细录入成本。</p></div></div>
+                    <div id="pendingList"></div>
+                    <div class="pending-submit"><button id="confirmButton" onclick="confirmPrices()">提交人工成本价</button></div>
+                </section>
+
+                <section class="post-work-grid" aria-label="对话与报价结果">
+                    <div id="result" style="display:none;" class="card">
+                        <div class="section-heading"><span class="section-icon" aria-hidden="true">▤</span><div><h2>报价结果</h2><p class="section-subtitle">核对明细、状态与审核链；客户报价须完成审批后导出。</p></div></div>
+                        <div id="summary"></div>
+                        <div class="table-wrap"><table id="itemsTable"><thead><tr><th>明细 ID</th><th>产品名称</th><th>型号</th><th>品牌</th><th>数量</th><th>成本价</th><th>单价</th><th>总价</th><th>备注</th></tr></thead><tbody></tbody></table></div>
+                        <div id="logs" class="log"></div>
+                        <div class="card-actions"><button id="exportButton" onclick="exportQuote('internal', 'xlsx')" disabled>导出内部 Excel</button><button id="exportWordButton" class="secondary" onclick="exportQuote('internal', 'docx')" disabled>导出内部 Word</button></div>
+                        <div id="approvalSection" class="hidden approval-panel">
+                            <div class="approval-head"><div><h3>审批与客户版发布</h3><p class="helper-text">按技术、采购、商务顺序审批；每个角色使用自己的访问令牌。</p></div><span class="approval-stages">技术 → 采购 → 商务</span></div>
+                            <div class="approval-fields"><div><label for="approvalStage">当前审批角色</label><select id="approvalStage"><option value="technical">技术</option><option value="procurement">采购</option><option value="commercial">商务</option></select></div><div><label for="approvalReason">审批意见</label><input type="text" id="approvalReason" placeholder="填写本阶段核查结论"></div></div>
+                            <div class="approval-actions"><button onclick="approveTask()">提交审批</button><button id="customerExportButton" class="secondary" onclick="exportQuote('customer', 'xlsx')" disabled>导出客户 Excel</button><button id="customerWordButton" class="secondary" onclick="exportQuote('customer', 'docx')" disabled>导出客户 Word</button></div>
+                        </div>
+                    </div>
+
+                    <section class="card assistant-card" aria-label="AI 报价助手">
+                        <div class="section-heading"><span class="section-icon" aria-hidden="true">⌘</span><div><h2>报价助手</h2><p class="section-subtitle">在这里输入问题，查看产品资料或当前任务信息。</p></div></div>
+                        <p id="chatScope" class="helper-text">当前为通用问答；读取报价任务后可询问该任务的状态与明细。</p>
+                        <div class="helper-text">当前助手提供只读查询，不会创建任务、修改价格或提交审批。产品资料仍需技术核实，不代表供应商价格。</div>
+                        <div id="chatMessages" class="chat-messages" aria-live="polite"><div class="chat-message chat-assistant">AI：你好，可以询问报价流程、已收录的施耐德产品资料，或读取任务后的状态与明细。创建报价任务请使用左侧表单。</div></div>
+                        <div class="prompt-suggestions" aria-label="常见问题">
+                            <button type="button" class="prompt-chip" onclick="setChatPrompt('报价流程需要哪些步骤？')">报价流程</button>
+                            <button type="button" class="prompt-chip" onclick="setChatPrompt('如何核对产品型号？')">核对产品型号</button>
+                            <button type="button" class="prompt-chip" onclick="setChatPrompt('当前任务还缺少什么信息？')">检查当前任务</button>
+                        </div>
+                        <div class="chat-composer">
+                            <label for="chatQuestion">输入消息</label><textarea id="chatQuestion" rows="3" maxlength="1000" placeholder="询问报价流程、产品资料或当前任务……"></textarea>
+                            <div class="composer-footer"><span class="composer-hint">Enter 发送 · Shift + Enter 换行</span><button id="sendChatButton" class="chat-send" onclick="sendChat()">发送 ↗</button></div>
+                        </div>
+                    </section>
+                </section>
+            </div>
+        </section>
+    </main>
 
     <script>
         let currentItems = [];
@@ -139,6 +290,19 @@
             const container = document.getElementById('chatMessages');
             container.appendChild(message);
             container.scrollTop = container.scrollHeight;
+        }
+
+        function resetChat() {
+            chatHistory = [];
+            document.getElementById('chatMessages').replaceChildren();
+            const scope = currentTaskId ? '我已关联当前报价任务。你可以询问它的状态、明细或待处理事项。' : '你好，可以询问报价流程或已收录的产品资料。创建报价任务请使用左侧表单。';
+            appendChat('assistant', scope);
+        }
+
+        function setChatPrompt(prompt) {
+            const input = document.getElementById('chatQuestion');
+            input.value = prompt;
+            input.focus();
         }
 
         function appendSources(sources) {
@@ -185,17 +349,21 @@
         }
 
         function setCurrentTask(taskId) {
-            if (currentTaskId !== taskId) {
-                chatHistory = [];
-                document.getElementById('chatMessages').replaceChildren();
-            }
+            const changed = currentTaskId !== taskId;
             currentTaskId = taskId;
+            if (changed) resetChat();
             document.getElementById('chatScope').textContent = `当前关联任务：${taskId}。AI 只读取你当前角色可见的摘要。`;
         }
 
         document.getElementById('accessToken').addEventListener('change', () => {
-            chatHistory = [];
-            document.getElementById('chatMessages').replaceChildren();
+            resetChat();
+        });
+
+        document.getElementById('chatQuestion').addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChat();
+            }
         });
 
         async function upload() {
@@ -210,6 +378,7 @@
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             formData.append('customer_name', customer);
+            formData.append('price_source', document.getElementById('priceSource').value);
 
             const res = await fetch('/upload', { method: 'POST', headers: authHeaders(), body: formData });
             const data = await res.json();
@@ -251,15 +420,20 @@
 
         function render(data) {
             if (currentRole !== (data.actor_role || null)) {
-                chatHistory = [];
-                document.getElementById('chatMessages').replaceChildren();
+                resetChat();
             }
             currentRole = data.actor_role || null;
             document.getElementById('result').style.display = 'block';
+            document.querySelector('.post-work-grid').classList.add('has-result');
+            const workflowSteps = document.querySelectorAll('.workflow-step');
+            const activeStep = data.status === '完成' ? 2 : data.status === '人工确认' ? 1 : 0;
+            workflowSteps.forEach((step, index) => step.classList.toggle('active', index === activeStep));
             const summary = document.getElementById('summary');
             const total = data.total_price === null ? '按角色隐藏' : (data.total_price || '0.00');
             const statusClass = data.status === '完成' ? 'status-done' : data.status === '人工确认' ? 'status-review' : 'status-pending';
-            summary.innerHTML = `<p><strong>任务ID:</strong> ${escapeHtml(data.task_id)}</p><p><strong>状态:</strong> <span class="status-badge ${statusClass}">${escapeHtml(data.status)}</span></p><p><strong>产品数:</strong> ${data.items.length} | <strong>待确认:</strong> ${data.pending_count || 0} | <strong>总价:</strong> CNY ¥${escapeHtml(total)}</p>`;
+            const sourceLabels = { database: '本地价格库', manual: '人工录价', web: '网页来源', software: '外部软件 / ERP' };
+            const sourceLabel = sourceLabels[data.price_source_selection] || '本地价格库';
+            summary.innerHTML = `<p><strong>任务ID:</strong> ${escapeHtml(data.task_id)}</p><p><strong>状态:</strong> <span class="status-badge ${statusClass}">${escapeHtml(data.status)}</span></p><p><strong>产品数:</strong> ${data.items.length} | <strong>待确认:</strong> ${data.pending_count || 0} | <strong>总价:</strong> CNY ¥${escapeHtml(total)}</p><p><strong>指定报价来源：</strong>${escapeHtml(sourceLabel)}</p>`;
             document.getElementById('exportButton').disabled = data.status !== '完成' || currentRole === 'technical';
             document.getElementById('exportWordButton').disabled = data.status !== '完成' || currentRole === 'technical';
             const approvalSection = document.getElementById('approvalSection');

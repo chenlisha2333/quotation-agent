@@ -1,0 +1,107 @@
+{
+  "catalog_version": "2026-11-01-cn-draft-1",
+  "market": "CN",
+  "scope": "从施耐德电气中国官网公开产品详情/技术问答整理的候选产品主数据。全部为 draft，未获企业技术审核，不代表中国市场可采购、报价批准或工程选型批准。",
+  "products": [
+    {
+      "product_id": "SE-CN-A9F18216",
+      "version": 1,
+      "brand": "施耐德电气",
+      "model": "A9F18216",
+      "name": "iC65N 小型断路器",
+      "aliases": [],
+      "unit": null,
+      "attributes": {"产品系列": "iC65N", "脱扣曲线": "C", "极数": "2P", "额定电流": "16 A"},
+      "lifecycle_status": "unknown",
+      "replacement_product_id": null,
+      "evidence": [
+        {"title": "A9F18216 - iC65N 小型断路器, C曲线, 2P, 16A | 施耐德电气", "url": "https://www.schneider-electric.cn/zh/product/A9F18216/ic65n-%E5%B0%8F%E5%9E%8B%E6%96%AD%E8%B7%AF%E5%99%A8-c%E6%9B%B2%E7%BA%BF-2p-16a/", "checked_on": "2026-11-01", "note": "型号和页面列示属性；产品适用性、供货状态和交易单位仍待企业确认。"}
+      ],
+      "permission_reference": null,
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "created_at": "2026-11-01T00:00:00Z"
+    },
+    {
+      "product_id": "SE-CN-A9F18232",
+      "version": 1,
+      "brand": "施耐德电气",
+      "model": "A9F18232",
+      "name": "iC65N 小型断路器",
+      "aliases": [],
+      "unit": null,
+      "attributes": {"产品系列": "iC65N", "脱扣曲线": "C", "极数": "2P", "额定电流": "32 A"},
+      "lifecycle_status": "unknown",
+      "replacement_product_id": null,
+      "evidence": [
+        {"title": "iC65N C曲线、2P、32A断路器订货号 | 施耐德电气中国技术问答", "url": "https://www.schneider-electric.cn/zh/faqs/FA250543/", "checked_on": "2026-11-01", "note": "技术问答确认该规格订货号；尚未找到该型号中国区独立产品详情页，保留待复核。"}
+      ],
+      "permission_reference": null,
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "created_at": "2026-11-01T00:00:00Z"
+    },
+    {
+      "product_id": "SE-CN-LC1D09M7",
+      "version": 1,
+      "brand": "施耐德电气",
+      "model": "LC1D09M7",
+      "name": "TeSys Deca 三极接触器",
+      "aliases": [],
+      "unit": null,
+      "attributes": {"产品系列": "TeSys Deca", "极数": "3P", "额定工作电流": "9 A", "控制线圈电压": "220 V AC", "控制线圈频率": "50/60 Hz"},
+      "lifecycle_status": "unknown",
+      "replacement_product_id": null,
+      "evidence": [
+        {"title": "LC1D09M7 - TeSys Deca 三极接触器, 9A, 220V, 50/60Hz | 施耐德电气中国", "url": "https://www.schneider-electric.cn/zh/product/LC1D09M7/tesys-deca-%E4%B8%89%E6%9E%81%E6%8E%A5%E8%A7%A6%E5%99%A8-9a-220v-50-60hzculus%E8%AE%A4%E8%AF%81%E4%BA%A7%E5%93%81/", "checked_on": "2026-11-01", "note": "中国官网页面标题/型号选择器列示；详细电气选型仍需技术人员核对。"}
+      ],
+      "permission_reference": null,
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "created_at": "2026-11-01T00:00:00Z"
+    },
+    {
+      "product_id": "SE-CN-XB4BA31",
+      "version": 1,
+      "brand": "施耐德电气",
+      "model": "XB4BA31",
+      "name": "Harmony XB4 Ø22 绿色按钮",
+      "aliases": [],
+      "unit": null,
+      "attributes": {"产品系列": "Harmony XB4", "安装直径": "22 mm", "按钮颜色": "绿色", "按钮形式": "平头、弹簧复位", "触点": "1 NO"},
+      "lifecycle_status": "unknown",
+      "replacement_product_id": null,
+      "evidence": [
+        {"title": "XB4BA31 - Ø22 绿色按钮 - 平头复位 - 1NO | 施耐德电气中国", "url": "https://www.schneider-electric.cn/zh/product/XB4BA31/%C3%B822-%E7%BB%BF%E8%89%B2%E6%8C%89%E9%92%AE-%E5%B9%B3%E5%A4%B4%E5%A4%8D%E4%BD%8D-1no/", "checked_on": "2026-11-01", "note": "页面标题列示属性；安装开孔、接线空间和应用适配仍需按正式图纸确认。"}
+      ],
+      "permission_reference": null,
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "created_at": "2026-11-01T00:00:00Z"
+    },
+    {
+      "product_id": "SE-CN-LC1D099M7",
+      "version": 1,
+      "brand": "施耐德电气",
+      "model": "LC1D099M7",
+      "name": "TeSys D 系列三极接触器（已停产型号）",
+      "aliases": [],
+      "unit": null,
+      "attributes": {"产品系列": "TeSys D"},
+      "lifecycle_status": "discontinued",
+      "replacement_product_id": "SE-CN-LC1D09M7",
+      "evidence": [
+        {"title": "LC1D099M7 停产与替代产品信息 | 施耐德电气中国", "url": "https://www.schneider-electric.cn/zh/product/LC1D099M7/tesys-d%E7%B3%BB%E5%88%97%E4%B8%89%E6%9E%81%E6%8E%A5%E8%A7%A6%E5%99%A8-9a-220v-50-60hz/", "checked_on": "2026-11-01", "note": "页面标示停止生产日期为2021-04-02，并列出LC1D09M7为替代产品；替代关系仍需公司技术审核。"}
+      ],
+      "permission_reference": null,
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "created_at": "2026-11-01T00:00:00Z"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from . import db
-from .config import DEFAULT_PROFIT_RATE, QUOTE_CURRENCY
+from .config import DEFAULT_PROFIT_RATE, QUOTE_CURRENCY, logger
 from .models import PriceValidationResult, Product, QuotationItem, QuotationStatus
 from .pricing import as_decimal, calculate_item_price
 from .product_policy import eligible_price, normalized_brand, product_issue
@@ -20,6 +20,7 @@ class GraphState(TypedDict):
     customer_name: str
     currency: Literal["CNY"]
     profit_rate: Decimal
+    price_source_selection: Literal["database", "manual", "web", "software"]
     products: List[Product]
     items: List[QuotationItem]
     status: str
@@ -31,6 +32,9 @@ class GraphState(TypedDict):
     revision: int
     approvals: Dict[str, dict]
     published_revision: Optional[int]
+    input_file_id: Optional[str]
+    input_file_extension: Optional[str]
+    input_file_sha256: Optional[str]
 
 
 class TaskSnapshot(BaseModel):
@@ -40,6 +44,7 @@ class TaskSnapshot(BaseModel):
     customer_name: str
     currency: Literal["CNY"]
     profit_rate: Decimal
+    price_source_selection: Literal["database", "manual", "web", "software"] = "database"
     products: List[Product]
     items: List[QuotationItem]
     status: str
@@ -51,6 +56,9 @@ class TaskSnapshot(BaseModel):
     revision: int = 0
     approvals: Dict[str, dict] = Field(default_factory=dict)
     published_revision: Optional[int] = None
+    input_file_id: Optional[str] = None
+    input_file_extension: Optional[str] = None
+    input_file_sha256: Optional[str] = None
 
 
 def get_task_state(task_id: str) -> Optional[GraphState]:
@@ -77,7 +85,10 @@ def save_task_state(
 
 
 def init_state(
-    products: List[Product], customer_name: str = "", profit_rate: Decimal = DEFAULT_PROFIT_RATE
+    products: List[Product], customer_name: str = "", profit_rate: Decimal = DEFAULT_PROFIT_RATE,
+    *, input_file_id: Optional[str] = None, input_file_sha256: Optional[str] = None,
+    input_file_extension: Optional[str] = None,
+    price_source_selection: Literal["database", "manual", "web", "software"] = "database",
 ) -> GraphState:
     # 即使两行名称、型号都相同，行号仍唯一；原始清单内容不被悄悄替换。
     identified = [
@@ -89,6 +100,7 @@ def init_state(
         "customer_name": customer_name,
         "currency": QUOTE_CURRENCY,
         "profit_rate": profit_rate,
+        "price_source_selection": price_source_selection,
         "products": identified,
         "items": [],
         "status": QuotationStatus.PENDING.value,
@@ -100,6 +112,9 @@ def init_state(
         "revision": 0,
         "approvals": {},
         "published_revision": None,
+        "input_file_id": input_file_id,
+        "input_file_extension": input_file_extension,
+        "input_file_sha256": input_file_sha256,
     }
 
 
@@ -117,17 +132,35 @@ def price_lookup_step(state: GraphState) -> GraphState:
 
     for product in state["products"]:
         issue = product_issue(product)
-        record = search_local_price_tool(product) if issue is None else None
+        try:
+            record = (
+                search_local_price_tool(product)
+                if issue is None and state["price_source_selection"] == "database"
+                else None
+            )
+        except db.PriceLookupError as exc:
+            logger.error(
+                "报价任务因价格库故障中止 task_id=%s item_id=%s category=%s",
+                state["task_id"], product.item_id, exc.category,
+            )
+            raise
         if record is not None and eligible_price(product, record):
             item = calculate_item_price(product, record.price, state["profit_rate"])
             if item.unit_price > 0:
                 item.price_source = record.source
                 item.price_precision = record.price_precision
+                item.price_record_id = record.id
+                item.price_source_reference = record.source_reference
+                item.price_valid_until = record.valid_until
+                item.price_evidence_status = "verified"
                 items.append(item)
                 continue
             issue = "单价舍入后为零；请核对价格来源并人工录入有效成本价"
 
-        reason = issue or "缺少已核准且有效的施耐德人民币价格；请按明细 ID 人工录入成本价"
+        if state["price_source_selection"] == "manual" and issue is None:
+            reason = "用户指定人工录价；请按明细 ID 录入并核对成本价"
+        else:
+            reason = issue or "缺少已核准且有效的施耐德人民币价格；请按明细 ID 人工录入成本价"
         item = calculate_item_price(product, None, state["profit_rate"])
         item.remark = reason
         items.append(item)
@@ -138,7 +171,6 @@ def price_lookup_step(state: GraphState) -> GraphState:
     state["pending_products"] = pending
     state["review_reasons"] = reasons
     state["messages"].append(f"价格核对完成：{len(items) - len(pending)} 行有可用价，{len(pending)} 行待处理")
-    save_task_state(state, "价格查询", {"待处理行": list(reasons)})
     return state
 
 
@@ -149,14 +181,28 @@ def validate_prices_step(state: GraphState) -> GraphState:
     for item in state["items"]:
         if item.cost_price is None:
             continue
-        result = validate_price_tool(item.product, item.cost_price)
+        try:
+            result = validate_price_tool(item.product, item.cost_price)
+        except db.PriceLookupError as exc:
+            logger.error(
+                "报价任务因历史价格查询故障中止 task_id=%s item_id=%s category=%s",
+                state["task_id"], item.item_id, exc.category,
+            )
+            raise
         results[item.item_id] = result
         if result.warning:
             warnings += 1
             item.remark = f"{item.remark}; {result.warning}".strip("; ")
     state["validation_results"] = results
     state["messages"].append(f"价格核查发现 {warnings} 个警告" if warnings else "价格核查通过")
-    save_task_state(state, "价格核查", {"警告数量": warnings})
+    save_task_state(
+        state, "查价与价格核查完成",
+        {
+            "报价来源": state["price_source_selection"],
+            "待处理行": list(state["review_reasons"]),
+            "警告数量": warnings,
+        },
+    )
     return state
 
 
@@ -217,6 +263,10 @@ def apply_manual_prices(task_id: str, prices: Dict[str, Decimal]) -> Optional[Gr
             raise ValueError(f"{product.item_id}：舍入后单价为零，请核对成本价")
         item.price_source = "人工录价"
         item.price_precision = "manual"
+        item.price_record_id = None
+        item.price_source_reference = None
+        item.price_valid_until = None
+        item.price_evidence_status = "pending_procurement_evidence"
         item.remark = "人工录价，报价草稿待审批"
         replacements[item.item_id] = item
         checked_prices[item.item_id] = price
@@ -253,6 +303,14 @@ def build_agent():
 
 
 def run_quotation_agent(
-    products: List[Product], customer_name: str = "", profit_rate: Decimal = DEFAULT_PROFIT_RATE
+    products: List[Product], customer_name: str = "", profit_rate: Decimal = DEFAULT_PROFIT_RATE,
+    *, input_file_id: Optional[str] = None, input_file_sha256: Optional[str] = None,
+    input_file_extension: Optional[str] = None,
+    price_source_selection: Literal["database", "manual", "web", "software"] = "database",
 ) -> GraphState:
-    return build_agent().invoke(init_state(products, customer_name, profit_rate))
+    return build_agent().invoke(init_state(
+        products, customer_name, profit_rate,
+        input_file_id=input_file_id, input_file_sha256=input_file_sha256,
+        input_file_extension=input_file_extension,
+        price_source_selection=price_source_selection,
+    ))

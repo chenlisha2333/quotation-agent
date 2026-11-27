@@ -1,4 +1,5 @@
 import uuid
+import hashlib
 from contextlib import asynccontextmanager
 from decimal import Decimal
 from pathlib import Path
@@ -66,7 +67,10 @@ def _task_response(state: GraphState, actor: Approver | None = None) -> dict:
     if actor and actor.role in {"technical", "procurement"}:
         hidden = {"profit_rate", "discount", "unit_price", "total_price"}
         if actor.role == "technical":
-            hidden |= {"cost_price", "price_source", "price_precision"}
+            hidden |= {
+                "cost_price", "price_source", "price_precision", "price_record_id",
+                "price_source_reference", "price_valid_until", "price_evidence_status",
+            }
         for item in items:
             for key in hidden:
                 item[key] = None
@@ -88,6 +92,7 @@ def _task_response(state: GraphState, actor: Approver | None = None) -> dict:
         "published_revision": state.get("published_revision"),
         "status": state["status"],
         "currency": state["currency"],
+        "price_source_selection": state.get("price_source_selection", "database"),
         "items": items,
         "total_price": total_price,
         "messages": state["messages"] if actor is None or actor.role == "commercial" else [],
@@ -97,8 +102,13 @@ def _task_response(state: GraphState, actor: Approver | None = None) -> dict:
 
 
 @app.post("/upload")
-async def upload_excel(customer_name: str = Form(""), profit_rate: Decimal = Form(DEFAULT_PROFIT_RATE, ge=0), file: UploadFile = File(...), authorization: str | None = Header(None)):
+async def upload_excel(customer_name: str = Form(""), profit_rate: Decimal = Form(DEFAULT_PROFIT_RATE, ge=0), price_source: str = Form("database"), file: UploadFile = File(...), authorization: str | None = Header(None)):
     actor = authorize(authorization)
+    if price_source not in {"database", "manual", "web", "software"}:
+        raise HTTPException(status_code=422, detail="不支持的报价来源选项")
+    if price_source in {"web", "software"}:
+        source_name = "网页" if price_source == "web" else "外部软件/ERP"
+        raise HTTPException(status_code=501, detail=f"{source_name}报价来源尚未配置适配器；当前可用来源为本地价格库和人工录价")
     if not profit_rate.is_finite() or profit_rate != DEFAULT_PROFIT_RATE:
         raise HTTPException(status_code=422, detail="当前询价规则固定为成本价 × 1.2（加价率 0.20）")
     suffix = Path(file.filename or "").suffix.lower()
@@ -107,6 +117,8 @@ async def upload_excel(customer_name: str = Form(""), profit_rate: Decimal = For
 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     file_path = UPLOAD_DIR / f"{uuid.uuid4().hex}{suffix}"
+    input_file_id = file_path.stem
+    digest = hashlib.sha256()
     size = 0
     try:
         with open(file_path, "wb") as target:
@@ -115,6 +127,7 @@ async def upload_excel(customer_name: str = Form(""), profit_rate: Decimal = For
                 if size > MAX_UPLOAD_BYTES:
                     raise HTTPException(status_code=413, detail="Excel 文件不能超过 10 MiB")
                 target.write(chunk)
+                digest.update(chunk)
         if size == 0:
             raise HTTPException(status_code=400, detail="Excel 文件为空")
     except Exception:
@@ -130,7 +143,16 @@ async def upload_excel(customer_name: str = Form(""), profit_rate: Decimal = For
     if not products:
         raise HTTPException(status_code=400, detail="未解析到有效产品")
 
-    result = run_quotation_agent(products, customer_name, profit_rate)
+    try:
+        result = run_quotation_agent(
+            products, customer_name, profit_rate,
+            input_file_id=input_file_id, input_file_sha256=digest.hexdigest(),
+            input_file_extension=suffix,
+            price_source_selection=price_source,
+        )
+    except db.PriceLookupError as exc:
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=503, detail=exc.public_message) from exc
 
     return _task_response(result, actor)
 

@@ -84,7 +84,7 @@ def test_api_returns_money_as_strings(tmp_path, monkeypatch):
     product = Product(name="端子", quantity=3)
     item = calculate_item_price(product, "0.333", "0", "1")
     monkeypatch.setattr(main, "parse_excel", lambda path: [product])
-    monkeypatch.setattr(main, "run_quotation_agent", lambda products, customer, rate: {
+    monkeypatch.setattr(main, "run_quotation_agent", lambda products, customer, rate, **kwargs: {
         "task_id": "demo", "revision": 1, "status": "完成", "currency": "CNY", "items": [item],
         "messages": [], "pending_products": [], "review_reasons": {},
     })

@@ -13,6 +13,27 @@ def _safe_excel_text(value: str | None) -> str:
     return f"'{text}" if text.lstrip().startswith(("=", "+", "-", "@")) else text
 
 
+def _format_quote_sheet(ws, widths: list[float], header_row: int) -> None:
+    """给报价表设置可读列宽、换行和适合打印的页面。"""
+    for index, width in enumerate(widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(index)].width = width
+    for row in ws.iter_rows(min_row=header_row, max_row=ws.max_row):
+        for cell in row:
+            cell.alignment = Alignment(
+                horizontal="center" if row[0].row == header_row else "left",
+                vertical="center",
+                wrap_text=True,
+            )
+    ws.row_dimensions[header_row].height = 30
+    ws.freeze_panes = f"A{header_row + 1}"
+    ws.sheet_view.showGridLines = False
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.print_title_rows = f"1:{header_row}"
+
+
 def export_quotation(
     items: List[QuotationItem],
     customer_name: str = "",
@@ -93,29 +114,33 @@ def export_quotation(
 
     # Excel 数值单元格是浮点表示；保留十进制原文供内部核对。
     audit = wb.create_sheet("计算依据-内部")
-    audit.append(["明细ID", "产品名称", "型号", "原始成本价", "加价率", "折扣", "舍入后单价", "行价", "价格来源", "价格精度", "规则版本", "舍入方式", "币种"])
+    audit.append([
+        "明细ID", "产品名称", "型号", "原始成本价", "加价率", "折扣", "舍入后单价", "行价",
+        "价格来源", "价格精度", "价格记录ID", "来源凭证标识", "价格有效期", "凭证状态",
+        "规则版本", "舍入方式", "币种",
+    ])
     for idx, item in enumerate(items, 1):
         audit.append([
             item.item_id or str(idx), _safe_excel_text(item.product.name), _safe_excel_text(item.product.model),
             str(item.cost_price) if item.cost_price is not None else "",
             str(item.profit_rate), str(item.discount), str(item.unit_price),
             str(item.total_price), _safe_excel_text(item.price_source), item.price_precision or "",
-            item.pricing_rule_id, item.rounding_mode, item.currency,
+            item.price_record_id, _safe_excel_text(item.price_source_reference), item.price_valid_until or "",
+            item.price_evidence_status, item.pricing_rule_id, item.rounding_mode, item.currency,
         ])
     audit.append(["合计", "", "", "", "", "", "", str(exact_total)])
 
-    # 自动调整列宽（跳过合并单元格）
-    for col_idx, col in enumerate(ws.columns, 1):
-        max_length = 0
-        col_letter = openpyxl.utils.get_column_letter(col_idx)
-        for cell in col:
-            try:
-                # 跳过合并单元格
-                if hasattr(cell, 'value') and cell.value:
-                    max_length = max(max_length, len(str(cell.value)))
-            except Exception:
-                pass
-        ws.column_dimensions[col_letter].width = min(max_length + 2, 40)
+    _format_quote_sheet(
+        ws, [8, 24, 18, 24, 14, 12, 10, 10, 13, 12, 10, 13, 13, 26], header_row,
+    )
+    for cell in audit[1]:
+        cell.font = Font(bold=True)
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    for index, width in enumerate([14, 24, 18, 14, 12, 10, 14, 14, 16, 12, 24, 26, 16, 22, 26, 16, 10], 1):
+        audit.column_dimensions[openpyxl.utils.get_column_letter(index)].width = width
+    audit.freeze_panes = "A2"
+    audit.sheet_view.showGridLines = False
 
     wb.save(output_path)
     return output_path
@@ -150,10 +175,14 @@ def export_customer_quotation(
     for cell in ws[5]:
         cell.font = Font(bold=True)
         cell.fill = PatternFill(start_color="D9EAD3", end_color="D9EAD3", fill_type="solid")
-    for col in ws.columns:
-        cells = list(col)
-        ws.column_dimensions[cells[0].column_letter].width = min(
-            max(len(str(cell.value or "")) for cell in cells) + 2, 50
-        )
+    ws.merge_cells("A1:I1")
+    ws.merge_cells("A2:I2")
+    ws.merge_cells("A3:I3")
+    _format_quote_sheet(ws, [8, 26, 19, 24, 15, 10, 10, 15, 15], 5)
+    for row in ws.iter_rows(min_row=1, max_row=3):
+        row[0].alignment = Alignment(vertical="center", wrap_text=True)
+    ws.row_dimensions[1].height = 28
+    ws.row_dimensions[2].height = 22
+    ws.row_dimensions[3].height = 22
     wb.save(output_path)
     return output_path

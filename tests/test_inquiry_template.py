@@ -31,10 +31,11 @@ def test_supplier_prices_are_blank_and_template_is_downloadable():
 
 def test_uploading_template_requires_real_cost_quotes(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "UPLOAD_DIR", tmp_path / "uploads")
-    response = TestClient(main.app).post(
-        "/upload", data={"customer_name": "演示客户"},
-        files={"file": (TEMPLATE.name, TEMPLATE.read_bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
-    )
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/upload", data={"customer_name": "演示客户"},
+            files={"file": (TEMPLATE.name, TEMPLATE.read_bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        )
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["status"] == "人工确认"

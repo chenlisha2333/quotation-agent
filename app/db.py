@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import datetime
 from typing import List
 from .config import DATA_DIR, logger
-from .models import PriceRecord, Product
+from .models import PriceRecord, Product, ProductMasterVersion
 from .product_policy import eligible_price, normalized_brand, product_issue
 
 
@@ -73,6 +73,22 @@ def init_db():
         FOREIGN KEY (task_id) REFERENCES quotation_tasks(task_id)
     )
     """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS product_master_versions (
+        product_id TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        brand TEXT NOT NULL,
+        model TEXT NOT NULL,
+        approval_status TEXT NOT NULL,
+        record_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (product_id, version)
+    )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_product_master_brand_model "
+        "ON product_master_versions (brand, model, approval_status)"
+    )
     # 增列兼容旧库。旧记录缺少品牌、币种和核准证据，不参与自动报价。
     columns = {row[1] for row in cursor.execute("PRAGMA table_info(price_records)")}
     for name, definition in {
@@ -91,6 +107,146 @@ def init_db():
 
 class TaskConflictError(Exception):
     """任务版本已变化；调用方必须重新读取后再决定下一步。"""
+
+
+class PriceLookupError(RuntimeError):
+    """价格库读取或记录解码失败；不得伪装成没有合格价格。"""
+
+    def __init__(self, category: str, public_message: str):
+        super().__init__(public_message)
+        self.category = category
+        self.public_message = public_message
+
+
+class ProductMasterConflictError(ValueError):
+    """产品主数据版本重复、跳号或数据库中存在冲突。"""
+
+
+def save_product_master_version(record: ProductMasterVersion) -> None:
+    """追加产品版本；不提供更新旧版本的接口，避免改写历史证据。"""
+    init_db()
+    conn = get_conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT MAX(version) AS latest FROM product_master_versions WHERE product_id = ?",
+            (record.product_id,),
+        ).fetchone()
+        latest = row["latest"]
+        expected = 1 if latest is None else latest + 1
+        if record.version != expected:
+            raise ProductMasterConflictError(
+                f"产品 {record.product_id} 的下一版本应为 {expected}，收到 {record.version}"
+            )
+        conn.execute(
+            "INSERT INTO product_master_versions "
+            "(product_id, version, brand, model, approval_status, record_json) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                record.product_id, record.version, record.brand, record.model,
+                record.approval_status, json.dumps(record.model_dump(mode="json"), ensure_ascii=False),
+            ),
+        )
+        conn.commit()
+    except sqlite3.IntegrityError as exc:
+        conn.rollback()
+        raise ProductMasterConflictError("产品主数据版本已存在") from exc
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def import_product_master_versions(records: List[ProductMasterVersion]) -> tuple[int, int]:
+    """原子导入版本记录；相同内容重跑跳过，冲突或版本跳跃时整批回滚。"""
+    keys = [(record.product_id, record.version) for record in records]
+    if len(keys) != len(set(keys)):
+        raise ProductMasterConflictError("导入文件内存在重复的产品 ID/版本")
+    init_db()
+    conn = get_conn()
+    inserted = skipped = 0
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        for record in sorted(records, key=lambda item: (item.product_id, item.version)):
+            existing = conn.execute(
+                "SELECT record_json FROM product_master_versions WHERE product_id = ? AND version = ?",
+                (record.product_id, record.version),
+            ).fetchone()
+            payload = record.model_dump(mode="json")
+            if existing:
+                if json.loads(existing["record_json"]) != payload:
+                    raise ProductMasterConflictError(
+                        f"产品 {record.product_id} v{record.version} 已存在不同内容"
+                    )
+                skipped += 1
+                continue
+            row = conn.execute(
+                "SELECT MAX(version) AS latest FROM product_master_versions WHERE product_id = ?",
+                (record.product_id,),
+            ).fetchone()
+            latest = row["latest"]
+            expected = 1 if latest is None else latest + 1
+            if record.version != expected:
+                raise ProductMasterConflictError(
+                    f"产品 {record.product_id} 的下一版本应为 {expected}，收到 {record.version}"
+                )
+            conn.execute(
+                "INSERT INTO product_master_versions "
+                "(product_id, version, brand, model, approval_status, record_json) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    record.product_id, record.version, record.brand, record.model,
+                    record.approval_status, json.dumps(payload, ensure_ascii=False),
+                ),
+            )
+            inserted += 1
+        conn.commit()
+        return inserted, skipped
+    except sqlite3.IntegrityError as exc:
+        conn.rollback()
+        raise ProductMasterConflictError("产品主数据版本已存在") from exc
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def search_approved_product_candidates(brand: str, model: str) -> List[ProductMasterVersion]:
+    """按品牌 + 完整型号/登记别名精确查询当前已批准候选；不做模糊自动选型。"""
+    wanted_brand = normalized_brand(brand).casefold() if brand.strip() else ""
+    wanted_model = model.strip().casefold()
+    if not wanted_brand or not wanted_model:
+        return []
+    init_db()
+    conn = get_conn()
+    try:
+        rows = conn.execute("""
+            SELECT versions.record_json
+            FROM product_master_versions AS versions
+            JOIN (
+                SELECT product_id, MAX(version) AS version
+                FROM product_master_versions
+                WHERE approval_status = 'approved'
+                GROUP BY product_id
+            ) AS current
+              ON current.product_id = versions.product_id
+             AND current.version = versions.version
+            WHERE versions.approval_status = 'approved'
+        """).fetchall()
+    finally:
+        conn.close()
+
+    candidates = []
+    for row in rows:
+        record = ProductMasterVersion.model_validate(json.loads(row["record_json"]))
+        if normalized_brand(record.brand).casefold() != wanted_brand:
+            continue
+        exact_identifiers = [record.model, *record.aliases]
+        if any(identifier.strip().casefold() == wanted_model for identifier in exact_identifiers):
+            candidates.append(record)
+    return sorted(candidates, key=lambda record: (record.product_id, record.version))
 
 
 def load_task_snapshot(task_id: str) -> tuple[int, dict] | None:
@@ -185,7 +341,7 @@ def load_quote_revision(task_id: str, revision_no: int) -> dict | None:
     return json.loads(row["snapshot"]) if row else None
 
 
-def insert_price(record: PriceRecord):
+def insert_price(record: PriceRecord) -> int:
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
@@ -209,12 +365,15 @@ def insert_price(record: PriceRecord):
         record.confidence,
         record.fetched_at or datetime.now().isoformat()
     ))
+    record_id = int(cursor.lastrowid)
     conn.commit()
     conn.close()
+    return record_id
 
 
 def _price_record_from_row(row: sqlite3.Row) -> PriceRecord:
     values = dict(row)
+    values.pop("created_at", None)
     exact = values.get("price_decimal")
     values["price"] = Decimal(exact if exact is not None else str(values["price"]))
     if values.get("confidence") is None:
@@ -237,11 +396,18 @@ def search_local_price(product: Product) -> List[PriceRecord]:
             ).fetchall()
         finally:
             conn.close()
+    except (sqlite3.Error, OSError) as exc:
+        logger.error("本地价格库读取失败 category=database error_type=%s", type(exc).__name__)
+        raise PriceLookupError("database", "本地价格库暂不可用，请稍后重试") from exc
+
+    try:
         records = [_price_record_from_row(row) for row in rows]
-        return [record for record in records if eligible_price(product, record)]
-    except Exception as e:
-        logger.warning(f"本地价格查询失败: {e}")
-        return []
+    except Exception as exc:
+        logger.error("本地价格记录无法解码 category=invalid_record error_type=%s", type(exc).__name__)
+        raise PriceLookupError(
+            "invalid_record", "本地价格库存在无法读取的记录，请联系管理员检查"
+        ) from exc
+    return [record for record in records if eligible_price(product, record)]
 
 
 def get_historical_prices(product: Product, limit: int = 5) -> List[PriceRecord]:

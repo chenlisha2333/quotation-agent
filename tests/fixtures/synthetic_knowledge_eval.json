@@ -1,0 +1,17 @@
+{
+  "dataset_id": "synthetic-schneider-knowledge-v1",
+  "data_class": "synthetic",
+  "description": "人工编写的固定回归问题；使用产品型号构造，不是客户问题或真实业务评测集。",
+  "cases": [
+    {"id": "exact-model-m7", "query": "LC1D09M7 接触器线圈电压", "expected_source_ids": ["product:LC1D09M7"]},
+    {"id": "exact-model-bd", "query": "LC1D09BD 24V DC 接触器", "expected_source_ids": ["product:LC1D09BD"]},
+    {"id": "exact-breaker-16a", "query": "A9F77216 2P 16A C曲线断路器", "expected_source_ids": ["product:A9F77216"]},
+    {"id": "exact-breaker-32a", "query": "A9F77232 2P 32A C曲线断路器", "expected_source_ids": ["product:A9F77232"]},
+    {"id": "exact-button", "query": "XB4BA31 绿色按钮", "expected_source_ids": ["product:XB4BA31"]},
+    {"id": "unknown-similar-model", "query": "LC1D09M8 接触器", "expected_source_ids": []},
+    {"id": "conflicting-current", "query": "A9F77216 32A 断路器", "expected_source_ids": []},
+    {"id": "conflicting-voltage", "query": "LC1D09BD 220V 线圈", "expected_source_ids": []},
+    {"id": "unrelated-product", "query": "完全无关的冷冻机组", "expected_source_ids": []},
+    {"id": "comparison-two-models", "query": "LC1D09M7 和 LC1D09BD 比较", "expected_source_ids": ["product:LC1D09BD", "product:LC1D09M7"]}
+  ]
+}
